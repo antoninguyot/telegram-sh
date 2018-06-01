@@ -26,13 +26,17 @@ function post() {
         # Catching every argument with = and adding to to an associative aray
         while :; do
                 case $2 in
+                        '--print-output' | '-o')
+                            print_output="true"
+                            ;;
+
                         ?*=?*)
-                                request[${2%=*}]="${2%=*}=${2#*=}"
-                                ;;
+                            request[${2%=*}]="${2%=*}=${2#*=}"
+                            ;;
 
                         *)
-                                break
-                                ;;
+                            break
+                            ;;
                 esac
                 shift
         done
@@ -42,9 +46,15 @@ function post() {
 
         # Basic response parsing
         if [ $(echo "$QUERY" | jq -cr '.ok') == "true" ]; then
+
+            # Check if the print output argument was used
+            if [ "$print_output" = true ]; then
+                 echo $(echo "$QUERY" | jq -cr '.result')
+            else
                 echo "[SENT] method : $get_method"
+             fi
         else
-                echo "[ERROR] $(echo "$QUERY" | jq -cr '.')"
+            echo "[ERROR] $(echo "$QUERY" | jq -cr '.')"
         fi
 
 }
@@ -61,6 +71,7 @@ function parse() {
         for file in "$path" ; do
                 if [ -f "$file" ] ; then
                         . "$file"
+                        echo "$?"
                 fi
         done
 }
@@ -85,7 +96,9 @@ if [ "$0" = "$BASH_SOURCE" ]; then
                             # If jq was okay, continue parsing
                             offset=$((OFFSET_DATA+1))
                             echo "[RECEIVED] update $offset"
-                            parse
+
+                            # Start a child process and parse
+                            parse &
                         else
 
                             # Handles exception by skipping the request
